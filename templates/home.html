@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamSense - Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1 class="logo">STREAMSENSE</h1>
+            <div class="nav-links">
+                <span class="user-welcome">Welcome, {{ username }}!</span>
+                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="banner">
+        <div class="banner-content">
+            <h1 class="banner-title">Welcome to StreamSense</h1>
+            <p class="banner-subtitle">Watch unlimited movies and TV shows. Share your reviews with AI-powered sentiment analysis.</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2 class="section-title">Popular on StreamSense</h2>
+        <div class="movie-grid">
+            {% for movie in movies %}
+            <div class="movie-card">
+                <a href="{{ url_for('movie', movie_id=movie.id) }}">
+                    <div class="movie-poster">
+                        <img src="{{ url_for('static', filename='images/' + movie.poster) }}" 
+                             alt="{{ movie.title }}"
+                             onerror="this.src='https://via.placeholder.com/300x450/141414/E50914?text={{ movie.title }}'">
+                        <div class="movie-overlay">
+                            <h3>{{ movie.title }}</h3>
+                            <button class="btn-watch">Watch Now</button>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>&copy; 2024 StreamSense. Powered by AI Sentiment Analysis.</p>
+    </footer>
+</body>
+</html>
+

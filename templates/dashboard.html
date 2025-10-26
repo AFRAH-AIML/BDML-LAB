@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - StreamSense</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1 class="logo">STREAMSENSE ADMIN</h1>
+            <div class="nav-links">
+                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="dashboard-container">
+        <h1 class="dashboard-title">📊 Admin Dashboard</h1>
+        
+        <!-- Movie Filter -->
+        <div class="filter-section">
+            <label for="movieFilter">Filter by Movie:</label>
+            <select id="movieFilter" onchange="filterByMovie(this.value)">
+                {% for movie in movies %}
+                <option value="{{ movie }}" {% if movie == stats.selected_movie %}selected{% endif %}>
+                    {{ movie|title if movie != 'all' else 'All Movies' }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Reviews</h3>
+                <p class="stat-number">{{ stats.total }}</p>
+            </div>
+            <div class="stat-card stat-positive">
+                <h3>Positive Reviews</h3>
+                <p class="stat-number">{{ stats.positive }}</p>
+            </div>
+            <div class="stat-card stat-negative">
+                <h3>Negative Reviews</h3>
+                <p class="stat-number">{{ stats.negative }}</p>
+            </div>
+            <div class="stat-card stat-highlight">
+                <h3>{% if stats.selected_movie == 'all' %}Most Loved{% else %}Model Accuracy{% endif %}</h3>
+                {% if stats.selected_movie == 'all' %}
+                    <p class="stat-movie">🏆 {{ stats.most_positive }}</p>
+                {% else %}
+                    <p class="stat-number">{{ "%.2f"|format(stats.accuracy) }}%</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <!-- Sentiment Distribution Pie Chart (for specific movie) -->
+            <div class="chart-section" id="sentimentChartSection">
+                <h2>Sentiment Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Movie Distribution Charts (when "All" is selected) -->
+            <div class="chart-section" id="positiveChartSection" style="display: none;">
+                <h2>✅ Positive Reviews by Movie</h2>
+                <div class="chart-container">
+                    <canvas id="positiveChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-section" id="negativeChartSection" style="display: none;">
+                <h2>❌ Negative Reviews by Movie</h2>
+                <div class="chart-container">
+                    <canvas id="negativeChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Model Performance Metrics -->
+            <div class="chart-section">
+                <h2>📈 Model Performance</h2>
+                <div class="metrics-container">
+                    <div class="metric-item">
+                        <span class="metric-label">Accuracy:</span>
+                        <span class="metric-value">{{ "%.2f"|format(stats.accuracy) }}%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Precision (Pos):</span>
+                        <span class="metric-value">93%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Recall (Pos):</span>
+                        <span class="metric-value">91%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">F1-Score:</span>
+                        <span class="metric-value">92%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Model Type:</span>
+                        <span class="metric-value">DistilBERT</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Parameters:</span>
+                        <span class="metric-value">67M</span>
+                    </div>
+                </div>
+                
+                <!-- Confusion Matrix Visualization -->
+                <div class="confusion-matrix">
+                    <h3>Confusion Matrix</h3>
+                    <table class="cm-table">
+                        <tr>
+                            <td></td>
+                            <td class="cm-header">Pred Neg</td>
+                            <td class="cm-header">Pred Pos</td>
+                        </tr>
+                        <tr>
+                            <td class="cm-header">Actual Neg</td>
+                            <td class="cm-cell cm-correct">4569</td>
+                            <td class="cm-cell cm-wrong">431</td>
+                        </tr>
+                        <tr>
+                            <td class="cm-header">Actual Pos</td>
+                            <td class="cm-cell cm-wrong">336</td>
+                            <td class="cm-cell cm-correct">4664</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Word Clouds -->
+        <div class="wordcloud-section">
+            <h2>☁️ Word Cloud Analysis</h2>
+            <div class="wordcloud-grid">
+                <div class="wordcloud-card">
+                    <h3>Positive Reviews - Top Words</h3>
+                    <canvas id="positiveWordCloud" width="500" height="300"></canvas>
+                </div>
+                <div class="wordcloud-card">
+                    <h3>Negative Reviews - Top Words</h3>
+                    <canvas id="negativeWordCloud" width="500" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-section">
+            <h2>All Reviews</h2>
+            <div class="table-wrapper">
+                <table class="reviews-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Movie</th>
+                            <th>Review</th>
+                            <th>Sentiment</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if reviews %}
+                            {% for review in reviews %}
+                            <tr>
+                                <td>{{ review.username }}</td>
+                                <td>{{ review.movie_title }}</td>
+                                <td class="review-cell">{{ review.review_text }}</td>
+                                <td>
+                                    <span class="badge badge-{{ review.sentiment|lower }}">
+                                        {{ review.sentiment }}
+                                    </span>
+                                </td>
+                                <td>{{ review.timestamp }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center;">No reviews yet</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>&copy; 2024 StreamSense Admin Panel. Powered by BERT AI.</p>
+    </footer>
+    
+    <script>
+        const selectedMovie = "{{ stats.selected_movie }}";
+        
+        // Filter by movie function
+        function filterByMovie(movie) {
+            window.location.href = `/admin/dashboard?movie=${movie}`;
+        }
+        
+        // Show/hide charts based on selection
+        if (selectedMovie === 'all') {
+            document.getElementById('sentimentChartSection').style.display = 'none';
+            document.getElementById('positiveChartSection').style.display = 'block';
+            document.getElementById('negativeChartSection').style.display = 'block';
+            
+            // Fetch movie distribution data
+            fetch('/api/movie-distribution')
+                .then(response => response.json())
+                .then(data => {
+                    const movies = Object.keys(data);
+                    const positiveData = movies.map(m => data[m].positive);
+                    const negativeData = movies.map(m => data[m].negative);
+                    
+                    const colors = [
+                        '#E50914', '#4CAF50', '#2196F3', '#FF9800', 
+                        '#9C27B0', '#00BCD4', '#FFEB3B', '#F44336',
+                        '#8BC34A', '#FF5722'
+                    ];
+                    
+                    // Positive Reviews Donut Chart
+                    const ctxPos = document.getElementById('positiveChart').getContext('2d');
+                    new Chart(ctxPos, {
+                        type: 'doughnut',
+                        data: {
+                            labels: movies,
+                            datasets: [{
+                                label: 'Positive Reviews',
+                                data: positiveData,
+                                backgroundColor: colors,
+                                borderColor: '#1a1a1a',
+                                borderWidth: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: {
+                                        color: '#ffffff',
+                                        font: {
+                                            size: 11,
+                                            family: 'Poppins'
+                                        },
+                                        padding: 10,
+                                        generateLabels: function(chart) {
+                                            const data = chart.data;
+                                            return data.labels.map((label, i) => {
+                                                const count = positiveData[i];
+                                                return {
+                                                    text: `${label}: ${count}`,
+                                                    fillStyle: colors[i],
+                                                    fontColor: '#ffffff',
+                                                    hidden: false,
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                    }
+                                },
+                                title: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#fff',
+                                    callbacks: {
+                                        label: function(context) {
+                                            const movie = context.label;
+                                            const count = context.parsed;
+                                            const total = positiveData.reduce((a, b) => a + b, 0);
+                                            const percentage = ((count / total) * 100).toFixed(1);
+                                            return `${movie}: ${count} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Negative Reviews Donut Chart
+                    const ctxNeg = document.getElementById('negativeChart').getContext('2d');
+                    new Chart(ctxNeg, {
+                        type: 'doughnut',
+                        data: {
+                            labels: movies,
+                            datasets: [{
+                                label: 'Negative Reviews',
+                                data: negativeData,
+                                backgroundColor: colors,
+                                borderColor: '#1a1a1a',
+                                borderWidth: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: {
+                                        color: '#ffffff',
+                                        font: {
+                                            size: 11,
+                                            family: 'Poppins'
+                                        },
+                                        padding: 10,
+                                        generateLabels: function(chart) {
+                                            const data = chart.data;
+                                            return data.labels.map((label, i) => {
+                                                const count = negativeData[i];
+                                                return {
+                                                    text: `${label}: ${count}`,
+                                                    fillStyle: colors[i],
+                                                    fontColor: '#ffffff',
+                                                    hidden: false,
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                    }
+                                },
+                                title: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#fff',
+                                    callbacks: {
+                                        label: function(context) {
+                                            const movie = context.label;
+                                            const count = context.parsed;
+                                            const total = negativeData.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                                            return `${movie}: ${count} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+        } else {
+            // Show single movie sentiment chart
+            document.getElementById('sentimentChartSection').style.display = 'block';
+            document.getElementById('positiveChartSection').style.display = 'none';
+            document.getElementById('negativeChartSection').style.display = 'none';
+            
+            // Fetch sentiment data and create pie chart
+            fetch(`/api/sentiment-stats?movie=${selectedMovie}`)
+                .then(response => response.json())
+                .then(data => {
+                    const ctx = document.getElementById('sentimentChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Positive', 'Negative'],
+                            datasets: [{
+                                data: [data.positive, data.negative],
+                                backgroundColor: ['#4CAF50', '#f44336'],
+                                borderColor: '#1a1a1a',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        color: '#fff',
+                                        font: {
+                                            size: 14,
+                                            family: 'Poppins'
+                                        }
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: `${selectedMovie} - Sentiment Analysis`,
+                                    color: '#fff',
+                                    font: {
+                                        size: 18,
+                                        family: 'Poppins'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+        }
+        
+        // Create word clouds
+        function createWordCloud(elementId, sentimentType, color) {
+            fetch(`/api/wordcloud-data?movie=${selectedMovie}&type=${sentimentType}`)
+                .then(response => response.json())
+                .then(data => {
+                    const wordList = Object.entries(data).map(([word, freq]) => [word, freq * 3]);
+                    
+                    if (wordList.length > 0) {
+                        WordCloud(document.getElementById(elementId), {
+                            list: wordList,
+                            gridSize: 8,
+                            weightFactor: 4,
+                            fontFamily: 'Poppins, sans-serif',
+                            color: color,
+                            backgroundColor: '#1a1a1a',
+                            rotateRatio: 0.3,
+                            minSize: 10
+                        });
+                    }
+                });
+        }
+        
+        // Generate word clouds
+        createWordCloud('positiveWordCloud', 'positive', '#4CAF50');
+        createWordCloud('negativeWordCloud', 'negative', '#f44336');
+    </script>
+</body>
+</html>

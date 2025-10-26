@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ movie.title }} - StreamSense</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1 class="logo"><a href="{{ url_for('home') }}">STREAMSENSE</a></h1>
+            <div class="nav-links">
+                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="movie-detail-container">
+        <div class="movie-detail">
+            <div class="movie-detail-poster">
+                <img src="{{ url_for('static', filename='images/' + movie.poster) }}" 
+                     alt="{{ movie.title }}"
+                     onerror="this.src='https://via.placeholder.com/400x600/141414/E50914?text={{ movie.title }}'">
+            </div>
+            <div class="movie-detail-info">
+                <h1>{{ movie.title }}</h1>
+                <p class="movie-description">{{ movie.description }}</p>
+                <button class="btn-primary btn-play">▶ Play</button>
+            </div>
+        </div>
+        
+        <div class="review-section">
+            <h2>Write Your Review</h2>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" class="review-form">
+                <textarea name="review" placeholder="Share your thoughts about this movie..." rows="5" required></textarea>
+                <button type="submit" class="btn-primary">Submit Review</button>
+            </form>
+            
+            <div class="reviews-list">
+                <h3>Reviews ({{ reviews|length }})</h3>
+                {% if reviews %}
+                    {% for review in reviews %}
+                    <div class="review-card">
+                        <div class="review-header">
+                            <span class="review-user">👤 {{ review.username }}</span>
+                            <span class="review-time">{{ review.timestamp }}</span>
+                        </div>
+                        <p class="review-text">{{ review.review_text }}</p>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="no-reviews">No reviews yet. Be the first to review!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>&copy; 2024 StreamSense. Powered by AI Sentiment Analysis.</p>
+    </footer>
+</body>
+</html>
+
